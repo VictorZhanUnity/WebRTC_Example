@@ -1,0 +1,59 @@
+{% metadata_file .yamato/meta/environments.yml %}
+
+platforms:
+  - name: win
+    artifact_filename: webrtc-win.zip
+  - name: linux
+    artifact_filename: webrtc-linux.zip
+  - name: macos 
+    artifact_filename: webrtc-mac.zip
+  - name: ios
+    artifact_filename: webrtc-ios.zip
+  - name: android
+    artifact_filename: webrtc-android.zip
+---
+publish_com.unity.webrtc_github_release:
+  name: Publish com.unity.webrtc to Github Release
+  agent:
+    type: Unity::VM
+    image: package-ci/ubuntu:stable
+    flavor: b1.large
+  variables:
+    GIT_TAG: You need to change this parameter on Yamato UI
+  commands:
+    - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C99B11DEB97541F0
+    - sudo apt-add-repository https://cli.github.com/packages
+    - sudo apt update
+    - sudo apt install gh
+    - |
+      file=`find upm-ci~/packages -name "*.tgz" -print`
+      gh release upload $GIT_TAG $file --clobber -R Unity-Technologies/com.unity.webrtc
+  triggers:
+    tags:
+      only:
+        - /^(v|V)?\d+\.\d+\.\d+(-preview(\.\d+)?)?$/
+  dependencies:
+    - .yamato/upm-ci-webrtc-packages.yml#pack_webrtc
+
+
+
+publish_libwebrtc_github_release:
+  name: Publish libwebrtc {{ webrtc_version.name }} to Github Release
+  agent:
+    type: Unity::VM
+    image: package-ci/ubuntu:stable
+    flavor: b1.large
+  variables:
+    GIT_TAG: Foo
+  commands:
+    - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C99B11DEB97541F0
+    - sudo apt-add-repository https://cli.github.com/packages
+    - sudo apt update
+    - sudo apt install gh
+    {% for platform in platforms %}
+    - gh release upload $GIT_TAG artifacts/{{ platform.artifact_filename }} --clobber -R Unity-Technologies/com.unity.webrtc
+    {% endfor %}
+  dependencies:
+    {% for platform in platforms %}
+    - .yamato/upm-ci-libwebrtc.yml#build_{{ platform.name }}
+    {% endfor %}
